@@ -4,7 +4,7 @@
 
 Tiny AI companions that live above your macOS Dock.
 
-In this fork, **Bruce** and **Sam** stroll across the Dock, idle, think, and open a lightweight AI chat when you click them. It is part desktop toy, part menubar utility, part CLI companion.
+This is my fork of the original open source **lil agents** project. I kept the core Dock companion idea, then customized it for my own setup by replacing one of the default characters with my Bitmoji-style **Sam** while tuning the movement and vibe to fit the new animation.
 
 The app works with local AI CLIs including **Claude Code**, **OpenAI Codex**, **GitHub Copilot**, **Google Gemini**, and **OpenCode**. You can switch providers from the menubar without relaunching the app.
 
