@@ -2,51 +2,56 @@
 
 <img width="1264" height="814" alt="image" src="https://github.com/user-attachments/assets/2fb0d4d0-f11f-49b8-8d95-14eb03e9375e" />
 
+Tiny AI companions that live above your macOS Dock.
 
-Tiny AI companions that live on your macOS dock.
+In this fork, **Bruce** and **Sam** stroll across the Dock, idle, think, and open a lightweight AI chat when you click them. It is part desktop toy, part menubar utility, part CLI companion.
 
-**Bruce** and **Jazz** walk back and forth above your dock. Click one to open an AI terminal. They walk, they think, they vibe.
-
-Supports **Claude Code**, **OpenAI Codex**, **GitHub Copilot**, and **Google Gemini** CLIs — switch between them from the menubar.
-
-**[Download for macOS](https://lilagents.xyz)** · [Website](https://lilagents.xyz)
+The app works with local AI CLIs including **Claude Code**, **OpenAI Codex**, **GitHub Copilot**, **Google Gemini**, and **OpenCode**. You can switch providers from the menubar without relaunching the app.
 
 ## features
 
-- Animated characters rendered from transparent HEVC video
-- Click a character to chat with AI in a themed popover terminal
-- Switch between Claude, Codex, Copilot, and Gemini from the menubar
-- Four visual themes: Peach, Midnight, Cloud, Moss
-- Slash commands: `/clear`, `/copy`, `/help` in the chat input
-- Copy last response button in the title bar
-- Thinking bubbles with playful phrases while your agent works
-- Sound effects on completion
-- First-run onboarding with a friendly welcome
-- Auto-updates via Sparkle
+- Animated Dock companions rendered from transparent `.mov` loops
+- Per-character movement tuning, pacing, and positioning
+- Click a character to open a themed popover chat UI
+- Menubar controls for provider, character size, theme, sounds, and display selection
+- Supported providers: Claude, Codex, Copilot, Gemini, and OpenCode
+- Slash commands in chat: `/clear`, `/copy`, `/help`
+- Thinking bubbles and completion bubbles while the agent works
+- Completion sound effects
+- First-run onboarding flow
+- Sparkle-based app updates
 
 ## requirements
 
-- macOS Sonoma (14.0+) — including Sequoia (15.x)
-- **Universal binary** — runs natively on both Apple Silicon and Intel Macs
-- At least one supported CLI installed:
-  - [Claude Code](https://claude.ai/download) — `curl -fsSL https://claude.ai/install.sh | sh`
-  - [OpenAI Codex](https://github.com/openai/codex) — `npm install -g @openai/codex`
-  - [GitHub Copilot](https://github.com/github/copilot-cli) — `brew install copilot-cli`
-  - [Google Gemini CLI](https://github.com/google-gemini/gemini-cli) — `npm install -g @google/gemini-cli`
+- macOS 14.0 or newer
+- Xcode 15 or newer for local builds
+- At least one supported CLI installed and authenticated
+
+Provider install examples:
+
+- Claude Code: `curl -fsSL https://claude.ai/install.sh | sh`
+- OpenAI Codex: `npm install -g @openai/codex`
+- GitHub Copilot: `brew install copilot-cli`
+- Google Gemini CLI: `npm install -g @google/gemini-cli`
+- OpenCode: `curl -fsSL https://opencode.ai/install | bash`
 
 ## building
 
-Open `lil-agents.xcodeproj` in Xcode and hit run.
+There is no command-line build setup in this repo.
+
+1. Open [lil-agents.xcodeproj](/Users/samarthmahendra/PycharmProjects/lil-agents/lil-agents.xcodeproj) in Xcode.
+2. Select the `LilAgents` scheme.
+3. Build and run.
 
 ## privacy
 
-lil agents runs entirely on your Mac and sends no personal data anywhere.
+lil agents itself is a local macOS app.
 
-- **Your data stays local.** The app plays bundled animations and calculates your dock size to position the characters. No project data, file paths, or personal information is collected or transmitted.
-- **AI providers.** Conversations are handled entirely by the CLI process you choose (Claude, Codex, Copilot, or Gemini) running locally. lil agents does not intercept, store, or transmit your chat content. Any data sent to the provider is governed by their respective terms and privacy policies.
-- **No accounts.** No login, no user database, no analytics in the app.
-- **Updates.** lil agents uses Sparkle to check for updates, which sends your app version and macOS version. Nothing else.
+- The app renders bundled character animations and reads Dock layout information so it can position characters correctly.
+- Chat requests are handled by the CLI provider you choose to run on your machine.
+- The app does not run its own backend or account system.
+- Any network access comes from the provider CLI you use and from Sparkle update checks.
 
 ## license
 
-MIT License. See [LICENSE](LICENSE) for details.
+MIT. See [LICENSE](LICENSE).
