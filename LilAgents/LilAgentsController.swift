@@ -10,7 +10,7 @@ class LilAgentsController {
 
     func start() {
         let char1 = WalkerCharacter(videoName: "walk-bruce-01", name: "Bruce")
-        let char2 = WalkerCharacter(videoName: "walk-jazz-01", name: "Jazz")
+        let char2 = WalkerCharacter(videoName: "sam-walk-01", name: "Sam")
 
         // Detect available providers, then set first-run defaults
         AgentProvider.detectAvailableProviders { [weak char1, weak char2] in
@@ -28,13 +28,17 @@ class LilAgentsController {
         char1.walkStop = 8.5
         char1.walkAmountRange = 0.4...0.65
 
-        char2.accelStart = 3.9
-        char2.fullSpeedStart = 4.5
-        char2.decelStart = 8.0
-        char2.walkStop = 8.75
-        char2.walkAmountRange = 0.35...0.6
+        char2.videoDuration = 8.0
+        char2.accelStart = 3.0
+        char2.fullSpeedStart = 3.4
+        char2.decelStart = 5.5
+        char2.walkStop = 6.0
+        char2.walkAmountRange = 0.16...0.26
+        char2.walksBeforeFlip = 2
+        char2.pauseDelayRange = 1.5...3.0
+        char2.overlapPauseDelayRange = 1.0...2.0
         char1.yOffset = -3
-        char2.yOffset = -7
+        char2.yOffset = 12
         char1.characterColor = NSColor(red: 0.4, green: 0.72, blue: 0.55, alpha: 1.0)
         char2.characterColor = NSColor(red: 1.0, green: 0.4, blue: 0.0, alpha: 1.0)
 
@@ -45,7 +49,7 @@ class LilAgentsController {
         char2.positionProgress = 0.7
 
         char1.pauseEndTime = CACurrentMediaTime() + Double.random(in: 0.5...2.0)
-        char2.pauseEndTime = CACurrentMediaTime() + Double.random(in: 8.0...14.0)
+        char2.pauseEndTime = CACurrentMediaTime() + Double.random(in: 2.0...4.0)
 
         char1.setup()
         char2.setup()
@@ -235,16 +239,60 @@ class LilAgentsController {
         for char in activeChars {
             if char.isIdleForPopover { continue }
             if char.isPaused && now >= char.pauseEndTime && anyWalking {
-                char.pauseEndTime = now + Double.random(in: 5.0...10.0)
+                char.pauseEndTime = now + Double.random(in: char.overlapPauseDelayRange)
             }
         }
         for char in activeChars {
             char.update(dockX: dockX, dockWidth: dockWidth, dockTopY: dockTopY)
         }
+        resolveCharacterOverlap(activeChars, dockX: dockX, dockWidth: dockWidth, dockTopY: dockTopY)
 
         let sorted = activeChars.sorted { $0.positionProgress < $1.positionProgress }
         for (i, char) in sorted.enumerated() {
             char.window.level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + i)
+        }
+    }
+
+    private func resolveCharacterOverlap(_ activeChars: [WalkerCharacter], dockX: CGFloat, dockWidth: CGFloat, dockTopY: CGFloat) {
+        guard activeChars.count > 1 else { return }
+
+        for _ in 0..<3 {
+            let sorted = activeChars.sorted { $0.window.frame.minX < $1.window.frame.minX }
+            var adjusted = false
+
+            for i in 0..<(sorted.count - 1) {
+                let left = sorted[i]
+                let right = sorted[i + 1]
+                let requiredGap = max(left.minimumSpacingPixels, right.minimumSpacingPixels)
+                let currentGap = right.window.frame.minX - left.window.frame.minX
+                let overlap = requiredGap - currentGap
+
+                guard overlap > 0.5 else { continue }
+                adjusted = true
+
+                var leftShare = overlap / 2
+                var rightShare = overlap / 2
+                if left.isWalking && !right.isWalking {
+                    leftShare = overlap
+                    rightShare = 0
+                } else if !left.isWalking && right.isWalking {
+                    leftShare = 0
+                    rightShare = overlap
+                }
+
+                let movedLeft = abs(left.applyHorizontalShift(-leftShare, dockX: dockX, dockWidth: dockWidth, dockTopY: dockTopY))
+                let movedRight = abs(right.applyHorizontalShift(rightShare, dockX: dockX, dockWidth: dockWidth, dockTopY: dockTopY))
+                var remaining = overlap - movedLeft - movedRight
+
+                if remaining > 0.5 {
+                    remaining -= abs(right.applyHorizontalShift(remaining, dockX: dockX, dockWidth: dockWidth, dockTopY: dockTopY))
+                }
+                if remaining > 0.5 {
+                    _ = left.applyHorizontalShift(-remaining, dockX: dockX, dockWidth: dockWidth, dockTopY: dockTopY)
+                }
+            }
+
+            if !adjusted { break }
         }
     }
 

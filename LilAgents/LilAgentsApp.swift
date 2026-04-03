@@ -41,7 +41,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         char1Item.state = .on
         menu.addItem(char1Item)
 
-        let char2Item = NSMenuItem(title: "Jazz", action: #selector(toggleChar2), keyEquivalent: "2")
+        let char2Item = NSMenuItem(title: "Sam", action: #selector(toggleChar2), keyEquivalent: "2")
         char2Item.state = .on
         menu.addItem(char2Item)
 

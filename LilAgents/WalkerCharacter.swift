@@ -52,12 +52,15 @@ class WalkerCharacter {
     var displayWidth: CGFloat { displayHeight * (videoWidth / videoHeight) }
 
     // Walk timing (per-character, from frame analysis)
-    let videoDuration: CFTimeInterval = 10.0
+    var videoDuration: CFTimeInterval = 10.0
     var accelStart: CFTimeInterval = 3.0
     var fullSpeedStart: CFTimeInterval = 3.75
     var decelStart: CFTimeInterval = 7.5
     var walkStop: CFTimeInterval = 8.25
     var walkAmountRange: ClosedRange<CGFloat> = 0.25...0.5
+    var walksBeforeFlip: Int = 1
+    var pauseDelayRange: ClosedRange<Double> = 5.0...12.0
+    var overlapPauseDelayRange: ClosedRange<Double> = 5.0...10.0
     var yOffset: CGFloat = 0
     var flipXOffset: CGFloat = 0
     var characterColor: NSColor = .gray
@@ -76,6 +79,8 @@ class WalkerCharacter {
     // Walk endpoints stored in pixels for consistent speed across screen switches
     var walkStartPixel: CGFloat = 0.0
     var walkEndPixel: CGFloat = 0.0
+    private var completedWalksInCurrentDirection = 0
+    private var hasEstablishedDirection = false
 
     // Onboarding
     var isOnboarding = false
@@ -264,9 +269,9 @@ class WalkerCharacter {
         terminalView?.inputField.isEditable = false
         terminalView?.inputField.placeholderString = ""
         let welcome = """
-        hey! we're bruce and jazz — your lil dock agents.
+        hey! we're bruce and sam — your lil dock agents.
 
-        click either of us to open a Claude AI chat. we'll walk around while you work and let you know when Claude's thinking.
+        click either of us to open an AI chat. we'll walk around while you work and let you know when the agent's thinking.
 
         check the menu bar icon (top right) for themes, sounds, and more options.
 
@@ -856,8 +861,20 @@ class WalkerCharacter {
 
         if positionProgress > 0.85 {
             goingRight = false
+            completedWalksInCurrentDirection = 0
+            hasEstablishedDirection = true
         } else if positionProgress < 0.15 {
             goingRight = true
+            completedWalksInCurrentDirection = 0
+            hasEstablishedDirection = true
+        } else if walksBeforeFlip > 1 {
+            if !hasEstablishedDirection {
+                goingRight = Bool.random()
+                hasEstablishedDirection = true
+            } else if completedWalksInCurrentDirection >= walksBeforeFlip {
+                goingRight.toggle()
+                completedWalksInCurrentDirection = 0
+            }
         } else {
             goingRight = Bool.random()
         }
@@ -876,19 +893,23 @@ class WalkerCharacter {
         walkStartPixel = walkStartPos * currentTravelDistance
         walkEndPixel = walkEndPos * currentTravelDistance
 
-        let minSeparation: CGFloat = 0.12
+        let minSeparation = minimumSpacingPixels
         if let siblings = controller?.characters {
             for sibling in siblings where sibling !== self {
                 let sibPos = sibling.positionProgress
-                if abs(walkEndPos - sibPos) < minSeparation {
+                let targetGapPixels = max(minSeparation, sibling.minimumSpacingPixels)
+                let targetGap = currentTravelDistance > 0 ? targetGapPixels / currentTravelDistance : 0.12
+                if abs(walkEndPos - sibPos) < targetGap {
                     if goingRight {
-                        walkEndPos = max(walkStartPos, sibPos - minSeparation)
+                        walkEndPos = max(walkStartPos, sibPos - targetGap)
                     } else {
-                        walkEndPos = min(walkStartPos, sibPos + minSeparation)
+                        walkEndPos = min(walkStartPos, sibPos + targetGap)
                     }
                 }
             }
         }
+
+        walkEndPixel = walkEndPos * currentTravelDistance
 
         updateFlip()
         queuePlayer.seek(to: .zero)
@@ -898,9 +919,10 @@ class WalkerCharacter {
     func enterPause() {
         isWalking = false
         isPaused = true
+        completedWalksInCurrentDirection += 1
         queuePlayer.pause()
         queuePlayer.seek(to: .zero)
-        let delay = Double.random(in: 5.0...12.0)
+        let delay = Double.random(in: pauseDelayRange)
         pauseEndTime = CACurrentMediaTime() + delay
     }
 
@@ -918,6 +940,42 @@ class WalkerCharacter {
 
     var currentFlipCompensation: CGFloat {
         goingRight ? 0 : flipXOffset
+    }
+
+    var minimumSpacingPixels: CGFloat {
+        max(displayWidth * 0.72, 72)
+    }
+
+    @discardableResult
+    func applyHorizontalShift(_ deltaPixels: CGFloat, dockX: CGFloat, dockWidth: CGFloat, dockTopY: CGFloat) -> CGFloat {
+        guard abs(deltaPixels) > 0.01 else { return 0 }
+
+        let minX = dockX + currentFlipCompensation
+        let maxX = dockX + max(dockWidth - displayWidth, 0) + currentFlipCompensation
+        let currentX = window.frame.minX
+        let targetX = min(max(currentX + deltaPixels, minX), maxX)
+        let appliedDelta = targetX - currentX
+        guard abs(appliedDelta) > 0.01 else { return 0 }
+
+        let availableTravel = max(currentTravelDistance, 0)
+        if availableTravel > 0 {
+            let newPixel = targetX - dockX - currentFlipCompensation
+            positionProgress = min(max(newPixel / availableTravel, 0), 1)
+
+            if isWalking {
+                walkStartPixel = min(max(walkStartPixel + appliedDelta, 0), availableTravel)
+                walkEndPixel = min(max(walkEndPixel + appliedDelta, 0), availableTravel)
+                walkStartPos = min(max(walkStartPixel / availableTravel, 0), 1)
+                walkEndPos = min(max(walkEndPixel / availableTravel, 0), 1)
+            }
+        }
+
+        let bottomPadding = displayHeight * 0.15
+        let y = dockTopY - bottomPadding + yOffset
+        window.setFrameOrigin(NSPoint(x: targetX, y: y))
+        updatePopoverPosition()
+        updateThinkingBubble()
+        return appliedDelta
     }
 
     func movementPosition(at videoTime: CFTimeInterval) -> CGFloat {
