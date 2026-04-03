@@ -854,66 +854,122 @@ class WalkerCharacter {
     // MARK: - Walking
 
     func startWalk() {
+        walkStartPos = positionProgress
+        let preferredDirection = preferredWalkDirection()
+        let fallbackDirection = !preferredDirection
+
+        let preferredTarget = targetEndPosition(forGoingRight: preferredDirection)
+        let fallbackTarget = targetEndPosition(forGoingRight: fallbackDirection)
+
+        let minimumTravel = minimumWalkTravelProgress
+        let chosenDirection: Bool
+        let chosenEndPos: CGFloat
+
+        if abs(preferredTarget - walkStartPos) >= minimumTravel {
+            chosenDirection = preferredDirection
+            chosenEndPos = preferredTarget
+        } else if abs(fallbackTarget - walkStartPos) >= minimumTravel {
+            chosenDirection = fallbackDirection
+            chosenEndPos = fallbackTarget
+            completedWalksInCurrentDirection = 0
+            hasEstablishedDirection = true
+        } else {
+            skipWalkAndPromptSibling()
+            return
+        }
+
+        goingRight = chosenDirection
+        walkEndPos = chosenEndPos
+        walkStartPixel = walkStartPos * currentTravelDistance
+        walkEndPixel = walkEndPos * currentTravelDistance
+
         isPaused = false
         isWalking = true
         playCount = 0
         walkStartTime = CACurrentMediaTime()
 
-        if positionProgress > 0.85 {
-            goingRight = false
-            completedWalksInCurrentDirection = 0
-            hasEstablishedDirection = true
-        } else if positionProgress < 0.15 {
-            goingRight = true
-            completedWalksInCurrentDirection = 0
-            hasEstablishedDirection = true
-        } else if walksBeforeFlip > 1 {
-            if !hasEstablishedDirection {
-                goingRight = Bool.random()
-                hasEstablishedDirection = true
-            } else if completedWalksInCurrentDirection >= walksBeforeFlip {
-                goingRight.toggle()
-                completedWalksInCurrentDirection = 0
-            }
-        } else {
-            goingRight = Bool.random()
-        }
+        updateFlip()
+        queuePlayer.seek(to: .zero)
+        queuePlayer.play()
+    }
 
-        walkStartPos = positionProgress
-        // Walk a fixed pixel distance (~200-325px) regardless of screen width.
+    private var minimumWalkTravelProgress: CGFloat {
+        currentTravelDistance > 0 ? max(20 / currentTravelDistance, 0.035) : 0.035
+    }
+
+    private func preferredWalkDirection() -> Bool {
+        if positionProgress > 0.85 {
+            completedWalksInCurrentDirection = 0
+            hasEstablishedDirection = true
+            return false
+        }
+        if positionProgress < 0.15 {
+            completedWalksInCurrentDirection = 0
+            hasEstablishedDirection = true
+            return true
+        }
+        if walksBeforeFlip > 1 {
+            if !hasEstablishedDirection {
+                let initial = Bool.random()
+                hasEstablishedDirection = true
+                return initial
+            }
+            if completedWalksInCurrentDirection >= walksBeforeFlip {
+                completedWalksInCurrentDirection = 0
+                return !goingRight
+            }
+            return goingRight
+        }
+        return Bool.random()
+    }
+
+    private func targetEndPosition(forGoingRight direction: Bool) -> CGFloat {
         let referenceWidth: CGFloat = 500.0
         let walkPixels = CGFloat.random(in: walkAmountRange) * referenceWidth
         let walkAmount = currentTravelDistance > 0 ? walkPixels / currentTravelDistance : 0.3
-        if goingRight {
-            walkEndPos = min(walkStartPos + walkAmount, 1.0)
-        } else {
-            walkEndPos = max(walkStartPos - walkAmount, 0.0)
-        }
-        // Store pixel positions so walk speed stays consistent if screen changes mid-walk
-        walkStartPixel = walkStartPos * currentTravelDistance
-        walkEndPixel = walkEndPos * currentTravelDistance
+
+        var target = direction
+            ? min(walkStartPos + walkAmount, 1.0)
+            : max(walkStartPos - walkAmount, 0.0)
 
         let minSeparation = minimumSpacingPixels
         if let siblings = controller?.characters {
             for sibling in siblings where sibling !== self {
-                let sibPos = sibling.positionProgress
+                let siblingPos = sibling.isWalking ? sibling.walkEndPos : sibling.positionProgress
                 let targetGapPixels = max(minSeparation, sibling.minimumSpacingPixels)
                 let targetGap = currentTravelDistance > 0 ? targetGapPixels / currentTravelDistance : 0.12
-                if abs(walkEndPos - sibPos) < targetGap {
-                    if goingRight {
-                        walkEndPos = max(walkStartPos, sibPos - targetGap)
+                if abs(target - siblingPos) < targetGap {
+                    if direction {
+                        target = max(walkStartPos, siblingPos - targetGap)
                     } else {
-                        walkEndPos = min(walkStartPos, sibPos + targetGap)
+                        target = min(walkStartPos, siblingPos + targetGap)
                     }
                 }
             }
         }
 
-        walkEndPixel = walkEndPos * currentTravelDistance
+        return target
+    }
 
-        updateFlip()
+    private func skipWalkAndPromptSibling() {
+        isWalking = false
+        isPaused = true
+        queuePlayer.pause()
         queuePlayer.seek(to: .zero)
-        queuePlayer.play()
+
+        let now = CACurrentMediaTime()
+        pauseEndTime = now + Double.random(in: 0.8...1.6)
+
+        if let sibling = controller?.characters.first(where: {
+            $0 !== self &&
+            $0.isPaused &&
+            !$0.isIdleForPopover &&
+            !$0.isWalking &&
+            $0.window.isVisible &&
+            $0.isManuallyVisible
+        }) {
+            sibling.pauseEndTime = min(sibling.pauseEndTime, now)
+        }
     }
 
     func enterPause() {

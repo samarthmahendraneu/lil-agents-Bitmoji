@@ -270,25 +270,31 @@ class LilAgentsController {
                 guard overlap > 0.5 else { continue }
                 adjusted = true
 
-                var leftShare = overlap / 2
-                var rightShare = overlap / 2
+                let leftBound = dockX + left.currentFlipCompensation
+                let rightBound = dockX + max(dockWidth - right.displayWidth, 0) + right.currentFlipCompensation
+                let leftRoom = max(0, left.window.frame.minX - leftBound)
+                let rightRoom = max(0, rightBound - right.window.frame.minX)
+
+                let preferLeftOutward: Bool
                 if left.isWalking && !right.isWalking {
-                    leftShare = overlap
-                    rightShare = 0
+                    preferLeftOutward = true
                 } else if !left.isWalking && right.isWalking {
-                    leftShare = 0
-                    rightShare = overlap
+                    preferLeftOutward = false
+                } else {
+                    preferLeftOutward = leftRoom >= rightRoom
                 }
 
-                let movedLeft = abs(left.applyHorizontalShift(-leftShare, dockX: dockX, dockWidth: dockWidth, dockTopY: dockTopY))
-                let movedRight = abs(right.applyHorizontalShift(rightShare, dockX: dockX, dockWidth: dockWidth, dockTopY: dockTopY))
-                var remaining = overlap - movedLeft - movedRight
-
-                if remaining > 0.5 {
+                var remaining = overlap
+                if preferLeftOutward {
+                    remaining -= abs(left.applyHorizontalShift(-remaining, dockX: dockX, dockWidth: dockWidth, dockTopY: dockTopY))
+                    if remaining > 0.5 {
+                        _ = right.applyHorizontalShift(remaining, dockX: dockX, dockWidth: dockWidth, dockTopY: dockTopY)
+                    }
+                } else {
                     remaining -= abs(right.applyHorizontalShift(remaining, dockX: dockX, dockWidth: dockWidth, dockTopY: dockTopY))
-                }
-                if remaining > 0.5 {
-                    _ = left.applyHorizontalShift(-remaining, dockX: dockX, dockWidth: dockWidth, dockTopY: dockTopY)
+                    if remaining > 0.5 {
+                        _ = left.applyHorizontalShift(-remaining, dockX: dockX, dockWidth: dockWidth, dockTopY: dockTopY)
+                    }
                 }
             }
 
