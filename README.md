@@ -1,6 +1,7 @@
 # lil agents
 
-![lil agents](hero-thumbnail.png)
+<img width="1264" height="814" alt="image" src="https://github.com/user-attachments/assets/2fb0d4d0-f11f-49b8-8d95-14eb03e9375e" />
+
 
 Tiny AI companions that live on your macOS dock.
 
