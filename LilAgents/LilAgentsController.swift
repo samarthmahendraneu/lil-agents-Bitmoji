@@ -10,7 +10,7 @@ class LilAgentsController {
 
     func start() {
         let char1 = WalkerCharacter(videoName: "walk-bruce-01", name: "Bruce")
-        let char2 = WalkerCharacter(videoName: "sam-walk-01", name: "Sam")
+        let char2 = WalkerCharacter(videoName: "walk-sam-01", name: "Sam")
 
         // Detect available providers, then set first-run defaults
         AgentProvider.detectAvailableProviders { [weak char1, weak char2] in
